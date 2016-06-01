@@ -56,7 +56,7 @@ func ps(dc *dockerclient.DockerClient, all bool) {
 		log.Fatal(fmt.Errorf("ListContainers: %s", err))
 	}
 
-	width := termwidth()
+	width := float64(termwidth())
 
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
@@ -110,12 +110,12 @@ func ps(dc *dockerclient.DockerClient, all bool) {
 	w.Flush()
 }
 
-func termwidth() float64 {
+func termwidth() int {
 	width, _, err := terminal.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		log.Fatal(fmt.Errorf("terminal.GetSize: %s", err))
 	}
-	return float64(width)
+	return width
 }
 
 func state(state *dockerclient.State) string {
