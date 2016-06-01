@@ -131,14 +131,14 @@ func state(state *dockerclient.State) string {
 		if !state.Running {
 			buf.WriteString("exit")
 		} else {
-			buf.WriteString("restarting")
+			buf.WriteString("restart")
 		}
 		buf.WriteString(fmt.Sprintf("(%d)%s", state.ExitCode, prettyDuration(time.Since(state.FinishedAt))))
 		return buf.String()
 	}
 	buf.WriteString(fmt.Sprintf("%s", prettyDuration(time.Since(state.StartedAt))))
 	if state.Paused {
-		buf.WriteString(" (paused)")
+		buf.WriteString("Paused")
 	}
 	return buf.String()
 }
