@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -18,16 +19,21 @@ import (
 
 func main() {
 	psCommand := flag.NewFlagSet("ps", flag.ExitOnError)
-	allFlag := psCommand.Bool("a", false, "show all containers")
+	psallFlag := psCommand.Bool("a", false, "show all containers")
+	iCommand := flag.NewFlagSet("i", flag.ExitOnError)
+	iallFlag := iCommand.Bool("a", false, "show all images")
 
 	if len(os.Args) == 1 {
 		fmt.Println("subcommands:")
 		fmt.Println("  ps")
+		fmt.Println("  i|imgs|images")
 		return
 	}
 	switch os.Args[1] {
 	case "ps":
 		psCommand.Parse(os.Args[2:])
+	case "i", "imgs", "images":
+		iCommand.Parse(os.Args[2:])
 	default:
 		fmt.Printf("%q: unknown subcommand.\n", os.Args[1])
 		os.Exit(2)
@@ -44,13 +50,15 @@ func main() {
 	}
 
 	if psCommand.Parsed() {
-		ps(client, *allFlag)
+		ps(client, *psallFlag)
+	}
+	if iCommand.Parsed() {
+		imgs(client, *iallFlag)
 	}
 
 }
 
 func ps(client *docker.Client, all bool) {
-	// all bool, size bool, filters string
 	containers, err := client.ListContainers(
 		docker.ListContainersOptions{
 			All: all, Size: false,
@@ -64,16 +72,16 @@ func ps(client *docker.Client, all bool) {
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
 	if width > 100.0 {
-		fmt.Fprintln(w, "id\tname\tup\tip\tports\tcmd\tcre\timage")
+		fmt.Fprintln(w, "id\tname\tup\tip\tports\tcmd\tage\timage")
 	} else {
-		fmt.Fprintln(w, "id\tname\tup\tip\tports\tcre\timage")
+		fmt.Fprintln(w, "id\tname\tup\tip\tports\tage\timage")
 	}
 	for _, c := range containers {
 		cinfo, err := client.InspectContainer(c.ID)
 		if err != nil {
 			log.Fatal(fmt.Errorf("InspectContainer: %s", err))
 		}
-		line := c.ID[:5] + "\t"
+		line := c.ID[:6] + "\t"
 
 		line += shorten(strings.TrimPrefix(cinfo.Name, "/"), int(0.2*width)) + "\t"
 
@@ -109,6 +117,32 @@ func ps(client *docker.Client, all bool) {
 			}
 		}
 
+	}
+	w.Flush()
+}
+
+func imgs(client *docker.Client, all bool) {
+	imgs, err := client.ListImages(
+		docker.ListImagesOptions{
+			All: all,
+		})
+	if err != nil {
+		log.Fatal(fmt.Errorf("ListImages: %s", err))
+	}
+
+	w := new(tabwriter.Writer)
+	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
+	fmt.Fprintln(w, "id\tage\tsize\ttag")
+	for _, i := range imgs {
+		id := i.ID
+		if strings.ContainsAny(i.ID, ":") {
+			id = strings.SplitN(i.ID, ":", 2)[1]
+		}
+		line := id[:6] + "\t"
+		line += fmt.Sprintf("%s", prettyDuration(time.Since(time.Unix(i.Created, 0)))) + "\t"
+		line += fmt.Sprintf("%s", shortenBytes(i.Size)) + "\t"
+		line += fmt.Sprintf("%q", i.RepoTags) + "\t"
+		fmt.Fprintln(w, line)
 	}
 	w.Flush()
 }
@@ -195,4 +229,16 @@ func shorten(s string, l int) string {
 	}
 	l--
 	return s[:l/2+l%2] + "…" + s[len(s)-l/2:]
+}
+
+func shortenBytes(bytes int64) string {
+	byts := float64(bytes)
+	unit := float64(1024)
+	if byts < unit {
+		return fmt.Sprintf("%d", bytes)
+	}
+	exp := math.Log(byts) / math.Log(unit)
+	return fmt.Sprintf("%.1f %cB",
+		byts/math.Pow(unit, math.Floor(exp)),
+		"kMGTPE"[int(exp)-1])
 }
