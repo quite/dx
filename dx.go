@@ -11,9 +11,9 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"golang.org/x/crypto/ssh/terminal"
+	docker "github.com/fsouza/go-dockerclient"
 
-	"github.com/samalba/dockerclient"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func main() {
@@ -33,25 +33,28 @@ func main() {
 		os.Exit(2)
 	}
 
-	sock := "unix:///var/run/docker.sock"
+	endpoint := "unix:///var/run/docker.sock"
 	if dockerhost := os.Getenv("DOCKER_HOST"); dockerhost != "" {
-		sock = dockerhost
+		endpoint = dockerhost
 	}
 
-	dc, err := dockerclient.NewDockerClient(sock, nil)
+	client, err := docker.NewClient(endpoint)
 	if err != nil {
-		log.Fatal(fmt.Errorf("NewDockerClient: %s", err))
+		log.Fatal(fmt.Errorf("NewClient: %s", err))
 	}
 
 	if psCommand.Parsed() {
-		ps(dc, *allFlag)
+		ps(client, *allFlag)
 	}
 
 }
 
-func ps(dc *dockerclient.DockerClient, all bool) {
+func ps(client *docker.Client, all bool) {
 	// all bool, size bool, filters string
-	containers, err := dc.ListContainers(all, false, "")
+	containers, err := client.ListContainers(
+		docker.ListContainersOptions{
+			All: all, Size: false,
+		})
 	if err != nil {
 		log.Fatal(fmt.Errorf("ListContainers: %s", err))
 	}
@@ -66,18 +69,18 @@ func ps(dc *dockerclient.DockerClient, all bool) {
 		fmt.Fprintln(w, "id\tname\tup\tip\tports\tcre\timage")
 	}
 	for _, c := range containers {
-		cinfo, err := dc.InspectContainer(c.Id)
+		cinfo, err := client.InspectContainer(c.ID)
 		if err != nil {
 			log.Fatal(fmt.Errorf("InspectContainer: %s", err))
 		}
-		line := c.Id[:5] + "\t"
+		line := c.ID[:5] + "\t"
 
 		line += shorten(strings.TrimPrefix(cinfo.Name, "/"), int(0.2*width)) + "\t"
 
 		line += fmt.Sprintf("%s", state(cinfo.State)) + "\t"
 
 		// TODO, only one IP?
-		ips := ips(c.NetworkSettings.Networks)
+		ips := ips(c.Networks)
 		line += ips[0] + "\t"
 
 		portlines := ports(c.Ports)
@@ -118,7 +121,7 @@ func termwidth() int {
 	return width
 }
 
-func state(state *dockerclient.State) string {
+func state(state docker.State) string {
 	var buf bytes.Buffer
 	if !state.Running || state.Restarting {
 		if state.Dead {
@@ -162,15 +165,15 @@ func prettyDuration(duration time.Duration) string {
 	return fmt.Sprintf("%dy", int(duration.Hours())/24/365)
 }
 
-func ips(es map[string]dockerclient.EndpointSettings) []string {
+func ips(networklist docker.NetworkList) []string {
 	s := []string{}
-	for _, v := range es {
-		s = append(s, v.IPAddress)
+	for _, cnetwork := range networklist.Networks {
+		s = append(s, cnetwork.IPAddress)
 	}
 	return s
 }
 
-func ports(ports []dockerclient.Port) []string {
+func ports(ports []docker.APIPort) []string {
 	lines := []string{}
 	for _, p := range ports {
 		line := ""
@@ -178,9 +181,9 @@ func ports(ports []dockerclient.Port) []string {
 			line += p.Type + ":"
 		}
 		if p.IP != "" {
-			line += strconv.Itoa(p.PublicPort) + "→"
+			line += strconv.FormatInt(p.PublicPort, 10) + "→"
 		}
-		line += strconv.Itoa(p.PrivatePort)
+		line += strconv.FormatInt(p.PrivatePort, 10)
 		lines = append(lines, line)
 	}
 	return lines
