@@ -132,7 +132,7 @@ func imgs(client *docker.Client, all bool) {
 
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
-	fmt.Fprintln(w, "id\tage\tsize\ttag")
+	fmt.Fprintln(w, "id\tage\tsize\trepotags")
 	for _, i := range imgs {
 		id := i.ID
 		if strings.ContainsAny(i.ID, ":") {
@@ -141,7 +141,7 @@ func imgs(client *docker.Client, all bool) {
 		line := id[:6] + "\t"
 		line += fmt.Sprintf("%s", prettyDuration(time.Since(time.Unix(i.Created, 0)))) + "\t"
 		line += fmt.Sprintf("%s", shortenBytes(i.Size)) + "\t"
-		line += fmt.Sprintf("%q", i.RepoTags) + "\t"
+		line += fmt.Sprintf("%s", strings.Join(i.RepoTags, " ")) + "\t"
 		fmt.Fprintln(w, line)
 	}
 	w.Flush()
