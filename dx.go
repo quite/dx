@@ -109,11 +109,7 @@ func ps(client *docker.Client, all bool) {
 
 		if len(portlines) >= 2 {
 			for _, l := range portlines[1:] {
-				if width > 100 {
-					fmt.Fprintf(w, " \t \t \t \t%s \t \t\n", l)
-				} else {
-					fmt.Fprintf(w, " \t \t \t \t%s \t\n", l)
-				}
+				fmt.Fprintf(w, " \t \t \t \t%s\n", l)
 			}
 		}
 
