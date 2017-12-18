@@ -81,29 +81,29 @@ func ps(client *docker.Client, all bool) {
 		if err != nil {
 			log.Fatal(fmt.Errorf("InspectContainer: %s", err))
 		}
-		line := c.ID[:6] + "\t"
+		line := c.ID[:6]
 
-		line += shorten(strings.TrimPrefix(cinfo.Name, "/"), int(0.2*width)) + "\t"
+		line += "\t" + shorten(strings.TrimPrefix(cinfo.Name, "/"), int(0.2*width))
 
-		line += fmt.Sprintf("%s", state(cinfo.State)) + "\t"
+		line += "\t" + fmt.Sprintf("%s", state(cinfo.State))
 
 		// TODO, only one IP?
 		ips := ips(c.Networks)
-		line += ips[0] + "\t"
+		line += "\t" + ips[0]
 
+		line += "\t"
 		portlines := ports(c.Ports)
 		if len(portlines) > 0 {
 			line += portlines[0]
 		}
-		line += "\t"
 
 		if width > 100 {
-			line += shorten(c.Command, int(0.15*width)) + "\t"
+			line += "\t" + shorten(c.Command, int(0.15*width))
 		}
 
-		line += fmt.Sprintf("%s", prettyDuration(time.Since(time.Unix(c.Created, 0)))) + "\t"
+		line += "\t" + fmt.Sprintf("%s", prettyDuration(time.Since(time.Unix(c.Created, 0))))
 
-		line += shorten(c.Image, int(0.2*width)) + "\t"
+		line += "\t" + shorten(c.Image, int(0.2*width))
 
 		fmt.Fprintln(w, line)
 
@@ -138,10 +138,10 @@ func imgs(client *docker.Client, all bool) {
 		if strings.ContainsAny(i.ID, ":") {
 			id = strings.SplitN(i.ID, ":", 2)[1]
 		}
-		line := id[:6] + "\t"
-		line += fmt.Sprintf("%s", prettyDuration(time.Since(time.Unix(i.Created, 0)))) + "\t"
-		line += fmt.Sprintf("%s", shortenBytes(i.Size)) + "\t"
-		line += fmt.Sprintf("%s", strings.Join(i.RepoTags, " ")) + "\t"
+		line := id[:6]
+		line += "\t" + fmt.Sprintf("%s", prettyDuration(time.Since(time.Unix(i.Created, 0))))
+		line += "\t" + fmt.Sprintf("%s", shortenBytes(i.Size))
+		line += "\t" + fmt.Sprintf("%s", strings.Join(i.RepoTags, " "))
 		fmt.Fprintln(w, line)
 	}
 	w.Flush()
