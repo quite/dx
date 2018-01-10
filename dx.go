@@ -71,7 +71,7 @@ func ps(client *docker.Client, all bool) {
 
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
-	if width > 100.0 {
+	if width > 100 {
 		fmt.Fprintln(w, "id\tname\tup\tip\tports\tcmd\tage\timage")
 	} else {
 		fmt.Fprintln(w, "id\tname\tup\tip\tports\tage\timage")
@@ -144,6 +144,9 @@ func imgs(client *docker.Client, all bool) {
 }
 
 func termwidth() int {
+	if !terminal.IsTerminal(int(os.Stdout.Fd())) {
+		return 999
+	}
 	width, _, err := terminal.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		log.Fatal(fmt.Errorf("terminal.GetSize: %s", err))
