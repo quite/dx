@@ -14,7 +14,7 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 func main() {
@@ -46,7 +46,7 @@ func main() {
 
 	client, err := docker.NewClient(endpoint)
 	if err != nil {
-		log.Fatal(fmt.Errorf("NewClient: %s", err))
+		log.Fatalf("NewClient: %s", err)
 	}
 
 	if psCommand.Parsed() {
@@ -64,7 +64,7 @@ func ps(client *docker.Client, all bool) {
 			All: all, Size: false,
 		})
 	if err != nil {
-		log.Fatal(fmt.Errorf("ListContainers: %s", err))
+		log.Fatalf("ListContainers: %s", err)
 	}
 
 	width := float64(termwidth())
@@ -77,15 +77,18 @@ func ps(client *docker.Client, all bool) {
 		fmt.Fprintln(w, "id\tname\tup\tip\tports\tage\timage")
 	}
 	for _, c := range containers {
-		cinfo, err := client.InspectContainer(c.ID)
+		cinfo, err := client.InspectContainerWithOptions(
+			docker.InspectContainerOptions{
+				ID: c.ID,
+			})
 		if err != nil {
-			log.Fatal(fmt.Errorf("InspectContainer: %s", err))
+			log.Fatalf("InspectContainer: %s", err)
 		}
 		line := c.ID[:6]
 
 		line += "\t" + shorten(strings.TrimPrefix(cinfo.Name, "/"), int(0.2*width))
 
-		line += "\t" + fmt.Sprintf("%s", state(cinfo.State))
+		line += "\t" + state(cinfo.State)
 
 		// TODO, only one IP?
 		ips := ips(c.Networks)
@@ -101,7 +104,7 @@ func ps(client *docker.Client, all bool) {
 			line += "\t" + shorten(c.Command, int(0.15*width))
 		}
 
-		line += "\t" + fmt.Sprintf("%s", prettyDuration(time.Since(time.Unix(c.Created, 0))))
+		line += "\t" + prettyDuration(time.Since(time.Unix(c.Created, 0)))
 
 		line += "\t" + shorten(c.Image, int(0.2*width))
 
@@ -112,7 +115,6 @@ func ps(client *docker.Client, all bool) {
 				fmt.Fprintf(w, " \t \t \t \t%s\n", l)
 			}
 		}
-
 	}
 	w.Flush()
 }
@@ -123,7 +125,7 @@ func imgs(client *docker.Client, all bool) {
 			All: all,
 		})
 	if err != nil {
-		log.Fatal(fmt.Errorf("ListImages: %s", err))
+		log.Fatalf("ListImages: %s", err)
 	}
 
 	w := new(tabwriter.Writer)
@@ -135,21 +137,21 @@ func imgs(client *docker.Client, all bool) {
 			id = strings.SplitN(i.ID, ":", 2)[1]
 		}
 		line := id[:6]
-		line += "\t" + fmt.Sprintf("%s", prettyDuration(time.Since(time.Unix(i.Created, 0))))
-		line += "\t" + fmt.Sprintf("%s", shortenBytes(i.Size))
-		line += "\t" + fmt.Sprintf("%s", strings.Join(i.RepoTags, " "))
+		line += "\t" + prettyDuration(time.Since(time.Unix(i.Created, 0)))
+		line += "\t" + shortenBytes(i.Size)
+		line += "\t" + strings.Join(i.RepoTags, " ")
 		fmt.Fprintln(w, line)
 	}
 	w.Flush()
 }
 
 func termwidth() int {
-	if !terminal.IsTerminal(int(os.Stdout.Fd())) {
+	if !term.IsTerminal(int(os.Stdout.Fd())) {
 		return 999
 	}
-	width, _, err := terminal.GetSize(int(os.Stdout.Fd()))
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
-		log.Fatal(fmt.Errorf("terminal.GetSize: %s", err))
+		log.Fatalf("terminal.GetSize: %s", err)
 	}
 	return width
 }
@@ -172,7 +174,7 @@ func state(state docker.State) string {
 		buf.WriteString(fmt.Sprintf("(%d)%s", state.ExitCode, prettyDuration(time.Since(state.FinishedAt))))
 		return buf.String()
 	}
-	buf.WriteString(fmt.Sprintf("%s", prettyDuration(time.Since(state.StartedAt))))
+	buf.WriteString(prettyDuration(time.Since(state.StartedAt)))
 	if state.Paused {
 		buf.WriteString("Paused")
 	}
