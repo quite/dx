@@ -22,11 +22,13 @@ func main() {
 	psallFlag := psCommand.Bool("a", false, "show all containers")
 	iCommand := flag.NewFlagSet("i", flag.ExitOnError)
 	iallFlag := iCommand.Bool("a", false, "show all images")
+	vCommand := flag.NewFlagSet("v", flag.ExitOnError)
 
 	if len(os.Args) == 1 {
 		fmt.Println("subcommands:")
 		fmt.Println("  ps")
 		fmt.Println("  i|imgs|images")
+		fmt.Println("  v|vols|volumes")
 		return
 	}
 	switch os.Args[1] {
@@ -34,6 +36,8 @@ func main() {
 		psCommand.Parse(os.Args[2:])
 	case "i", "imgs", "images":
 		iCommand.Parse(os.Args[2:])
+	case "v", "vols", "volumes":
+		vCommand.Parse(os.Args[2:])
 	default:
 		fmt.Printf("%q: unknown subcommand.\n", os.Args[1])
 		os.Exit(2)
@@ -54,6 +58,9 @@ func main() {
 	}
 	if iCommand.Parsed() {
 		imgs(client, *iallFlag)
+	}
+	if vCommand.Parsed() {
+		vols(client)
 	}
 
 }
@@ -140,6 +147,24 @@ func imgs(client *docker.Client, all bool) {
 		line += "\t" + prettyDuration(time.Since(time.Unix(i.Created, 0)))
 		line += "\t" + shortenBytes(i.Size)
 		line += "\t" + strings.Join(i.RepoTags, " ")
+		fmt.Fprintln(w, line)
+	}
+	w.Flush()
+}
+
+func vols(client *docker.Client) {
+	vols, err := client.ListVolumes(docker.ListVolumesOptions{})
+	if err != nil {
+		log.Fatalf("ListVolumes: %s", err)
+	}
+
+	w := new(tabwriter.Writer)
+	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
+	fmt.Fprintln(w, "age\tdriver\tname")
+	for _, v := range vols {
+		line := prettyDuration(time.Since(v.CreatedAt))
+		line += "\t" + v.Driver
+		line += "\t" + v.Name
 		fmt.Fprintln(w, line)
 	}
 	w.Flush()
