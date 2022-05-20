@@ -250,11 +250,11 @@ func ports(ports []docker.APIPort) []string {
 }
 
 func shorten(s string, l int) string {
-	if len(s) <= l {
-		return s
+	if len(s) > l {
+		l--
+		s = fmt.Sprintf("%s…%s", string([]rune(s)[:l/2+l%2]), string([]rune(s)[len(s)-l/2:]))
 	}
-	l--
-	return s[:l/2+l%2] + "…" + s[len(s)-l/2:]
+	return strings.ReplaceAll(s, "\n", "␤")
 }
 
 func shortenBytes(bytes int64) string {
