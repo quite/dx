@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -71,6 +72,10 @@ func ps(client *docker.Client, all bool) {
 		log.Fatalf("ListContainers: %s", err)
 	}
 
+	sort.Slice(containers, func(i, j int) bool {
+		return containers[i].Created < containers[j].Created
+	})
+
 	width := float64(termwidth())
 
 	w := new(tabwriter.Writer)
@@ -119,6 +124,10 @@ func imgs(client *docker.Client, all bool) {
 		log.Fatalf("ListImages: %s", err)
 	}
 
+	sort.Slice(imgs, func(i, j int) bool {
+		return imgs[i].Created < imgs[j].Created
+	})
+
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
 	fmt.Fprintf(w, "id\tage\tsize\trepotags")
@@ -142,6 +151,10 @@ func vols(client *docker.Client) {
 	if err != nil {
 		log.Fatalf("ListVolumes: %s", err)
 	}
+
+	sort.Slice(vols, func(i, j int) bool {
+		return vols[i].CreatedAt.Before(vols[j].CreatedAt)
+	})
 
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
