@@ -1,6 +1,6 @@
 module github.com/quite/dx
 
-go 1.18
+go 1.17
 
 require (
 	github.com/fsouza/go-dockerclient v1.7.11
