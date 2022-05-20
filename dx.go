@@ -106,7 +106,7 @@ func ps(client *docker.Client, all bool) {
 		fmt.Fprintf(w, "\t%s", ports(c.Ports))
 
 		if width > 100 {
-			fmt.Fprintf(w, "\t%s", shorten(c.Command, int(0.15*width)))
+			fmt.Fprintf(w, "\t%s", shortenMiddle(c.Command, int(0.15*width)))
 		}
 
 		imgAge := "?"
@@ -267,6 +267,14 @@ func ports(ports []docker.APIPort) string {
 }
 
 func shorten(s string, l int) string {
+	if len(s) > l {
+		l--
+		s = fmt.Sprintf("%s…", string([]rune(s)[:l]))
+	}
+	return strings.ReplaceAll(s, "\n", "␤")
+}
+
+func shortenMiddle(s string, l int) string {
 	if len(s) > l {
 		l--
 		s = fmt.Sprintf("%s…%s", string([]rune(s)[:l/2+l%2]), string([]rune(s)[len(s)-l/2:]))
