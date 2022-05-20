@@ -81,9 +81,9 @@ func ps(client *docker.Client, all bool) {
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
 	if width > 100 {
-		fmt.Fprintf(w, "id\tname\tage\tup\tip\tports\tcmd\timage")
+		fmt.Fprintf(w, "id\tname\tage\tup\tip\tports\tcmd\timage (age)")
 	} else {
-		fmt.Fprintf(w, "id\tname\tage\tup\tip\tports\timage")
+		fmt.Fprintf(w, "id\tname\tage\tup\tip\tports\timage (age)")
 	}
 	for _, c := range containers {
 		cinfo, err := client.InspectContainerWithOptions(
@@ -109,7 +109,14 @@ func ps(client *docker.Client, all bool) {
 			fmt.Fprintf(w, "\t%s", shorten(c.Command, int(0.15*width)))
 		}
 
-		fmt.Fprintf(w, "\t%s", shorten(c.Image, int(0.2*width)))
+		imgAge := "?"
+		img, err := client.InspectImage(cinfo.Image) // by hash
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "\nInspectImage: %s\n", err)
+		} else {
+			imgAge = prettyDuration(time.Since(img.Created))
+		}
+		fmt.Fprintf(w, "\t%s (%s)", shorten(c.Image, int(0.2*width)), imgAge)
 	}
 	fmt.Fprintf(w, "\n")
 	w.Flush()
