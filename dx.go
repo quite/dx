@@ -261,7 +261,7 @@ func shortenBytes(bytes int64) string {
 		return fmt.Sprintf("%d", bytes)
 	}
 	exp := math.Log(byts) / math.Log(unit)
-	return fmt.Sprintf("%.1f %cB",
+	return fmt.Sprintf("%.1f%cB",
 		byts/math.Pow(unit, math.Floor(exp)),
 		"kMGTPE"[int(exp)-1])
 }
