@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"log"
@@ -169,7 +168,7 @@ func termwidth() int {
 }
 
 func state(state docker.State) string {
-	var buf bytes.Buffer
+	var sb strings.Builder
 	if !state.Running || state.Restarting {
 		if state.Dead {
 			return "dead"
@@ -179,18 +178,18 @@ func state(state docker.State) string {
 			return "FinishedAt==0"
 		}
 		if !state.Running {
-			buf.WriteString("exit")
+			sb.WriteString("exit")
 		} else {
-			buf.WriteString("restart")
+			sb.WriteString("restart")
 		}
-		buf.WriteString(fmt.Sprintf("(%d)%s", state.ExitCode, prettyDuration(time.Since(state.FinishedAt))))
-		return buf.String()
+		sb.WriteString(fmt.Sprintf("(%d)%s", state.ExitCode, prettyDuration(time.Since(state.FinishedAt))))
+		return sb.String()
 	}
-	buf.WriteString(prettyDuration(time.Since(state.StartedAt)))
+	sb.WriteString(prettyDuration(time.Since(state.StartedAt)))
 	if state.Paused {
-		buf.WriteString("Paused")
+		sb.WriteString("Paused")
 	}
-	return buf.String()
+	return sb.String()
 }
 
 func prettyDuration(duration time.Duration) string {
