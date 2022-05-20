@@ -213,22 +213,33 @@ func state(state docker.State) string {
 }
 
 func prettyDuration(duration time.Duration) string {
-	if seconds := int(duration.Seconds()); seconds < 1 {
+	const (
+		min   = 60
+		hour  = 60 * min
+		day   = 24 * hour
+		week  = 7 * day
+		month = 30 * day
+		year  = 365 * day
+	)
+	s := int(duration.Seconds())
+	switch {
+	case s < 1:
 		return "now"
-	} else if seconds < 60 { // 1m
-		return fmt.Sprintf("%ds", seconds)
-	} else if minutes := int(duration.Minutes()); minutes < 60 { // 1h
-		return fmt.Sprintf("%dm", minutes)
-	} else if hours := int(duration.Hours()); hours < 24*3 { // 3d
-		return fmt.Sprintf("%dh", hours)
-	} else if hours < 24*7*2 { // 2w
-		return fmt.Sprintf("%dd", hours/24)
-	} else if hours < 24*30*2 { // 2M
-		return fmt.Sprintf("%dw", hours/24/7)
-	} else if hours < 24*365*2 { // 2y
-		return fmt.Sprintf("%dM", hours/24/30)
+	case s < min:
+		return fmt.Sprintf("%ds", s)
+	case s < hour:
+		return fmt.Sprintf("%dm", s/min)
+	case s < 3*day:
+		return fmt.Sprintf("%dh", s/hour)
+	case s < 2*week:
+		return fmt.Sprintf("%dd", s/day)
+	case s < 2*month:
+		return fmt.Sprintf("%dw", s/week)
+	case s < 2*year:
+		return fmt.Sprintf("%dM", s/month)
+	default:
+		return fmt.Sprintf("%dy", s/year)
 	}
-	return fmt.Sprintf("%dy", int(duration.Hours())/24/365)
 }
 
 func ips(networklist docker.NetworkList) []string {
