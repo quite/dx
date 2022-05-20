@@ -98,11 +98,7 @@ func ps(client *docker.Client, all bool) {
 		ips := ips(c.Networks)
 		fmt.Fprintf(w, "\t%s", ips[0])
 
-		fmt.Fprintf(w, "\t")
-		portlines := ports(c.Ports)
-		if len(portlines) > 0 {
-			fmt.Fprintf(w, "%s", portlines[0])
-		}
+		fmt.Fprintf(w, "\t%s", ports(c.Ports))
 
 		if width > 100 {
 			fmt.Fprintf(w, "\t%s", shorten(c.Command, int(0.15*width)))
@@ -110,12 +106,6 @@ func ps(client *docker.Client, all bool) {
 
 		fmt.Fprintf(w, "\t%s", prettyDuration(time.Since(time.Unix(c.Created, 0))))
 		fmt.Fprintf(w, "\t%s", shorten(c.Image, int(0.2*width)))
-
-		if len(portlines) >= 2 {
-			for _, l := range portlines[1:] {
-				fmt.Fprintf(w, " \t \t \t \t%s\n", l)
-			}
-		}
 	}
 	fmt.Fprintf(w, "\n")
 	w.Flush()
@@ -230,7 +220,7 @@ func ips(networklist docker.NetworkList) []string {
 	return s
 }
 
-func ports(ports []docker.APIPort) []string {
+func ports(ports []docker.APIPort) string {
 	lines := []string{}
 	for _, p := range ports {
 		line := ""
@@ -243,7 +233,7 @@ func ports(ports []docker.APIPort) []string {
 		line += strconv.FormatInt(p.PrivatePort, 10)
 		lines = append(lines, line)
 	}
-	return lines
+	return strings.Join(lines, ",")
 }
 
 func shorten(s string, l int) string {
