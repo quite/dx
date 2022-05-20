@@ -13,7 +13,6 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-
 	"golang.org/x/term"
 )
 
@@ -62,7 +61,6 @@ func main() {
 	if vCommand.Parsed() {
 		vols(client)
 	}
-
 }
 
 func ps(client *docker.Client, all bool) {
@@ -79,9 +77,9 @@ func ps(client *docker.Client, all bool) {
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
 	if width > 100 {
-		fmt.Fprintln(w, "id\tname\tup\tip\tports\tcmd\tage\timage")
+		fmt.Fprintf(w, "id\tname\tup\tip\tports\tcmd\tage\timage")
 	} else {
-		fmt.Fprintln(w, "id\tname\tup\tip\tports\tage\timage")
+		fmt.Fprintf(w, "id\tname\tup\tip\tports\tage\timage")
 	}
 	for _, c := range containers {
 		cinfo, err := client.InspectContainerWithOptions(
@@ -91,31 +89,27 @@ func ps(client *docker.Client, all bool) {
 		if err != nil {
 			log.Fatalf("InspectContainer: %s", err)
 		}
-		line := c.ID[:6]
-
-		line += "\t" + shorten(strings.TrimPrefix(cinfo.Name, "/"), int(0.2*width))
-
-		line += "\t" + state(cinfo.State)
+		fmt.Fprintf(w, "\n")
+		fmt.Fprintf(w, "%s", c.ID[:6])
+		fmt.Fprintf(w, "\t%s", shorten(strings.TrimPrefix(cinfo.Name, "/"), int(0.2*width)))
+		fmt.Fprintf(w, "\t%s", state(cinfo.State))
 
 		// TODO, only one IP?
 		ips := ips(c.Networks)
-		line += "\t" + ips[0]
+		fmt.Fprintf(w, "\t%s", ips[0])
 
-		line += "\t"
+		fmt.Fprintf(w, "\t")
 		portlines := ports(c.Ports)
 		if len(portlines) > 0 {
-			line += portlines[0]
+			fmt.Fprintf(w, "%s", portlines[0])
 		}
 
 		if width > 100 {
-			line += "\t" + shorten(c.Command, int(0.15*width))
+			fmt.Fprintf(w, "\t%s", shorten(c.Command, int(0.15*width)))
 		}
 
-		line += "\t" + prettyDuration(time.Since(time.Unix(c.Created, 0)))
-
-		line += "\t" + shorten(c.Image, int(0.2*width))
-
-		fmt.Fprintln(w, line)
+		fmt.Fprintf(w, "\t%s", prettyDuration(time.Since(time.Unix(c.Created, 0))))
+		fmt.Fprintf(w, "\t%s", shorten(c.Image, int(0.2*width)))
 
 		if len(portlines) >= 2 {
 			for _, l := range portlines[1:] {
@@ -123,6 +117,7 @@ func ps(client *docker.Client, all bool) {
 			}
 		}
 	}
+	fmt.Fprintf(w, "\n")
 	w.Flush()
 }
 
@@ -137,18 +132,19 @@ func imgs(client *docker.Client, all bool) {
 
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
-	fmt.Fprintln(w, "id\tage\tsize\trepotags")
+	fmt.Fprintf(w, "id\tage\tsize\trepotags")
 	for _, i := range imgs {
 		id := i.ID
 		if strings.ContainsAny(i.ID, ":") {
 			id = strings.SplitN(i.ID, ":", 2)[1]
 		}
-		line := id[:6]
-		line += "\t" + prettyDuration(time.Since(time.Unix(i.Created, 0)))
-		line += "\t" + shortenBytes(i.Size)
-		line += "\t" + strings.Join(i.RepoTags, " ")
-		fmt.Fprintln(w, line)
+		fmt.Fprintf(w, "\n")
+		fmt.Fprintf(w, "%s", id[:6])
+		fmt.Fprintf(w, "\t%s", prettyDuration(time.Since(time.Unix(i.Created, 0))))
+		fmt.Fprintf(w, "\t%s", shortenBytes(i.Size))
+		fmt.Fprintf(w, "\t%s", strings.Join(i.RepoTags, " "))
 	}
+	fmt.Fprintf(w, "\n")
 	w.Flush()
 }
 
@@ -160,13 +156,14 @@ func vols(client *docker.Client) {
 
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
-	fmt.Fprintln(w, "age\tdriver\tname")
+	fmt.Fprintf(w, "age\tdriver\tname")
 	for _, v := range vols {
-		line := prettyDuration(time.Since(v.CreatedAt))
-		line += "\t" + v.Driver
-		line += "\t" + v.Name
-		fmt.Fprintln(w, line)
+		fmt.Fprintf(w, "\n")
+		fmt.Fprintf(w, "%s", prettyDuration(time.Since(v.CreatedAt)))
+		fmt.Fprintf(w, "\t%s", v.Driver)
+		fmt.Fprintf(w, "\t%s", v.Name)
 	}
+	fmt.Fprintf(w, "\n")
 	w.Flush()
 }
 
