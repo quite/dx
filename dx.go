@@ -81,9 +81,9 @@ func ps(client *docker.Client, all bool) {
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
 	if width > 100 {
-		fmt.Fprintf(w, "id\tname\tup\tip\tports\tcmd\tage\timage")
+		fmt.Fprintf(w, "id\tname\tage\tup\tip\tports\tcmd\timage")
 	} else {
-		fmt.Fprintf(w, "id\tname\tup\tip\tports\tage\timage")
+		fmt.Fprintf(w, "id\tname\tage\tup\tip\tports\timage")
 	}
 	for _, c := range containers {
 		cinfo, err := client.InspectContainerWithOptions(
@@ -96,6 +96,7 @@ func ps(client *docker.Client, all bool) {
 		fmt.Fprintf(w, "\n")
 		fmt.Fprintf(w, "%s", c.ID[:6])
 		fmt.Fprintf(w, "\t%s", shorten(strings.TrimPrefix(cinfo.Name, "/"), int(0.2*width)))
+		fmt.Fprintf(w, "\t%s", prettyDuration(time.Since(time.Unix(c.Created, 0))))
 		fmt.Fprintf(w, "\t%s", state(cinfo.State))
 
 		// TODO, only one IP?
@@ -108,7 +109,6 @@ func ps(client *docker.Client, all bool) {
 			fmt.Fprintf(w, "\t%s", shorten(c.Command, int(0.15*width)))
 		}
 
-		fmt.Fprintf(w, "\t%s", prettyDuration(time.Since(time.Unix(c.Created, 0))))
 		fmt.Fprintf(w, "\t%s", shorten(c.Image, int(0.2*width)))
 	}
 	fmt.Fprintf(w, "\n")
