@@ -5,9 +5,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"os"
+	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,7 +22,6 @@ import (
 
 // TODO
 // - Allow specifying which obj types examine should look for
-// - Automatically run examine output through pager if tty?
 
 func main() {
 	psCmd := flag.NewFlagSet("ps", flag.ExitOnError)
@@ -251,7 +252,34 @@ func outputFound(obj interface{}, objType string, id string) {
 	if err != nil {
 		log.Fatalf("Marshal: %s", err)
 	}
-	fmt.Printf("%s\n", b)
+	var out io.WriteCloser = os.Stdout
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		var cmd *exec.Cmd
+		cmd, out = runPager()
+		defer func() {
+			out.Close()
+			cmd.Wait()
+		}()
+	}
+	fmt.Fprintf(out, "%s\n", b)
+}
+
+func runPager() (*exec.Cmd, io.WriteCloser) {
+	pager := []string{"less"}
+	if env := os.Getenv("PAGER"); env != "" {
+		pager = strings.Split(os.Getenv("PAGER"), " ")
+	}
+	cmd := exec.Command(pager[0], pager[1:]...)
+	pipe, err := cmd.StdinPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		log.Fatal(err)
+	}
+	return cmd, pipe
 }
 
 func termwidth() int {
