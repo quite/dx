@@ -17,11 +17,11 @@ import (
 )
 
 func main() {
-	psCommand := flag.NewFlagSet("ps", flag.ExitOnError)
-	psallFlag := psCommand.Bool("a", false, "show all containers")
-	iCommand := flag.NewFlagSet("i", flag.ExitOnError)
-	iallFlag := iCommand.Bool("a", false, "show all images")
-	vCommand := flag.NewFlagSet("v", flag.ExitOnError)
+	psCmd := flag.NewFlagSet("ps", flag.ExitOnError)
+	psallFlag := psCmd.Bool("a", false, "show all containers")
+	iCmd := flag.NewFlagSet("i", flag.ExitOnError)
+	iallFlag := iCmd.Bool("a", false, "show all images")
+	vCmd := flag.NewFlagSet("v", flag.ExitOnError)
 
 	if len(os.Args) == 1 {
 		fmt.Println("subcommands:")
@@ -32,16 +32,33 @@ func main() {
 	}
 	switch os.Args[1] {
 	case "ps":
-		psCommand.Parse(os.Args[2:])
+		psCmd.Parse(os.Args[2:])
+		if psCmd.NArg() > 0 {
+			fmt.Printf("Unexpected positional arguments.\n")
+			os.Exit(2)
+		}
+		ps(*psallFlag)
 	case "i", "imgs", "images":
-		iCommand.Parse(os.Args[2:])
+		iCmd.Parse(os.Args[2:])
+		if psCmd.NArg() > 0 {
+			fmt.Printf("Unexpected positional arguments.\n")
+			os.Exit(2)
+		}
+		imgs(*iallFlag)
 	case "v", "vols", "volumes":
-		vCommand.Parse(os.Args[2:])
+		vCmd.Parse(os.Args[2:])
+		if psCmd.NArg() > 0 {
+			fmt.Printf("Unexpected positional arguments.\n")
+			os.Exit(2)
+		}
+		vols()
 	default:
 		fmt.Printf("%q: unknown subcommand.\n", os.Args[1])
 		os.Exit(2)
 	}
+}
 
+func newClient() *docker.Client {
 	endpoint := "unix:///var/run/docker.sock"
 	if dockerhost := os.Getenv("DOCKER_HOST"); dockerhost != "" {
 		endpoint = dockerhost
@@ -51,19 +68,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("NewClient: %s", err)
 	}
-
-	if psCommand.Parsed() {
-		ps(client, *psallFlag)
-	}
-	if iCommand.Parsed() {
-		imgs(client, *iallFlag)
-	}
-	if vCommand.Parsed() {
-		vols(client)
-	}
+	return client
 }
 
-func ps(client *docker.Client, all bool) {
+func ps(all bool) {
+	client := newClient()
 	containers, err := client.ListContainers(
 		docker.ListContainersOptions{
 			All: all, Size: false,
@@ -122,7 +131,8 @@ func ps(client *docker.Client, all bool) {
 	w.Flush()
 }
 
-func imgs(client *docker.Client, all bool) {
+func imgs(all bool) {
+	client := newClient()
 	imgs, err := client.ListImages(
 		docker.ListImagesOptions{
 			All: all,
@@ -147,13 +157,14 @@ func imgs(client *docker.Client, all bool) {
 		fmt.Fprintf(w, "%s", id[:6])
 		fmt.Fprintf(w, "\t%s", prettyDuration(time.Since(time.Unix(i.Created, 0))))
 		fmt.Fprintf(w, "\t%s", shortenBytes(i.Size))
-		fmt.Fprintf(w, "\t%s", strings.Join(i.RepoTags, " "))
+		fmt.Fprintf(w, "\t%s", strings.Join(i.RepoTags, ","))
 	}
 	fmt.Fprintf(w, "\n")
 	w.Flush()
 }
 
-func vols(client *docker.Client) {
+func vols() {
+	client := newClient()
 	vols, err := client.ListVolumes(docker.ListVolumesOptions{})
 	if err != nil {
 		log.Fatalf("ListVolumes: %s", err)
@@ -190,11 +201,12 @@ func termwidth() int {
 func state(state docker.State) string {
 	var sb strings.Builder
 	if !state.Running || state.Restarting {
-		if state.Dead {
+		switch {
+		case state.Dead:
 			return "dead"
-		} else if state.StartedAt.IsZero() {
+		case state.StartedAt.IsZero():
 			return "created"
-		} else if state.FinishedAt.IsZero() {
+		case state.FinishedAt.IsZero():
 			return "FinishedAt==0"
 		}
 		if !state.Running {
