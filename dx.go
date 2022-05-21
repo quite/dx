@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -16,18 +18,24 @@ import (
 	"golang.org/x/term"
 )
 
+// TODO
+// - Allow specifying which obj types examine should look for
+// - Automatically run examine output through pager if tty?
+
 func main() {
 	psCmd := flag.NewFlagSet("ps", flag.ExitOnError)
 	psallFlag := psCmd.Bool("a", false, "show all containers")
 	iCmd := flag.NewFlagSet("i", flag.ExitOnError)
 	iallFlag := iCmd.Bool("a", false, "show all images")
 	vCmd := flag.NewFlagSet("v", flag.ExitOnError)
+	xCmd := flag.NewFlagSet("x", flag.ExitOnError)
 
 	if len(os.Args) == 1 {
 		fmt.Println("subcommands:")
 		fmt.Println("  ps")
 		fmt.Println("  i|imgs|images")
 		fmt.Println("  v|vols|volumes")
+		fmt.Println("  x|examine|inspect")
 		return
 	}
 	switch os.Args[1] {
@@ -40,18 +48,25 @@ func main() {
 		ps(*psallFlag)
 	case "i", "imgs", "images":
 		iCmd.Parse(os.Args[2:])
-		if psCmd.NArg() > 0 {
+		if iCmd.NArg() > 0 {
 			fmt.Printf("Unexpected positional arguments.\n")
 			os.Exit(2)
 		}
 		imgs(*iallFlag)
 	case "v", "vols", "volumes":
 		vCmd.Parse(os.Args[2:])
-		if psCmd.NArg() > 0 {
+		if vCmd.NArg() > 0 {
 			fmt.Printf("Unexpected positional arguments.\n")
 			os.Exit(2)
 		}
 		vols()
+	case "x", "examine", "inspect":
+		xCmd.Parse(os.Args[2:])
+		if xCmd.NArg() != 1 {
+			fmt.Printf("Expected 1 ID/name (prefix) to examine.\n")
+			os.Exit(2)
+		}
+		examine(xCmd.Args()[0])
 	default:
 		fmt.Printf("%q: unknown subcommand.\n", os.Args[1])
 		os.Exit(2)
@@ -96,9 +111,7 @@ func ps(all bool) {
 	}
 	for _, c := range containers {
 		cinfo, err := client.InspectContainerWithOptions(
-			docker.InspectContainerOptions{
-				ID: c.ID,
-			})
+			docker.InspectContainerOptions{ID: c.ID})
 		if err != nil {
 			log.Fatalf("InspectContainer: %s", err)
 		}
@@ -185,6 +198,60 @@ func vols() {
 	}
 	fmt.Fprintf(w, "\n")
 	w.Flush()
+}
+
+func examine(arg string) {
+	client := newClient()
+	container, err := client.InspectContainerWithOptions(
+		docker.InspectContainerOptions{ID: arg})
+	if err != nil {
+		if _, errNotFound := err.(*docker.NoSuchContainer); !errNotFound {
+			log.Fatalf("InspectContainer: %s", err)
+		}
+	} else {
+		outputFound(container, "container", container.ID)
+		return
+	}
+
+	img, err := client.InspectImage(arg)
+	if err != nil {
+		if !errors.Is(err, docker.ErrNoSuchImage) {
+			log.Fatalf("InspectImage: %s", err)
+		}
+	} else {
+		outputFound(img, "image", img.ID)
+		return
+	}
+
+	var vol *docker.Volume
+	vols, err := client.ListVolumes(docker.ListVolumesOptions{})
+	if err != nil {
+		log.Fatalf("ListVolumes: %s", err)
+	}
+	for i := range vols {
+		if strings.HasPrefix(vols[i].Name, arg) {
+			if vol != nil {
+				fmt.Fprintf(os.Stderr, "Found multiple volumes with prefix: %s\n", arg)
+				return
+			}
+			vol = &vols[i]
+		}
+	}
+	if vol != nil {
+		outputFound(vol, "volume", vol.Name)
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "Found nothing matching.\n")
+}
+
+func outputFound(obj interface{}, objType string, id string) {
+	fmt.Fprintf(os.Stderr, "Found %s: %s\n", objType, id)
+	b, err := json.MarshalIndent(obj, "", "  ")
+	if err != nil {
+		log.Fatalf("Marshal: %s", err)
+	}
+	fmt.Printf("%s\n", b)
 }
 
 func termwidth() int {
