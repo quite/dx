@@ -33,14 +33,14 @@ func main() {
 
 	if len(os.Args) == 1 {
 		fmt.Println("subcommands:")
-		fmt.Println("  ps")
+		fmt.Println("  ps|c|containers")
 		fmt.Println("  i|imgs|images")
 		fmt.Println("  v|vols|volumes")
 		fmt.Println("  x|examine|inspect")
 		return
 	}
 	switch os.Args[1] {
-	case "ps":
+	case "ps", "c", "containers":
 		psCmd.Parse(os.Args[2:])
 		if psCmd.NArg() > 0 {
 			fmt.Printf("Unexpected positional arguments.\n")
