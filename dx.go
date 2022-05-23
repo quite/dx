@@ -206,7 +206,8 @@ func examine(arg string) {
 	container, err := client.InspectContainerWithOptions(
 		docker.InspectContainerOptions{ID: arg})
 	if err != nil {
-		if _, errNotFound := err.(*docker.NoSuchContainer); !errNotFound {
+		var errNoSuch *docker.NoSuchContainer
+		if !errors.As(err, &errNoSuch) {
 			log.Fatalf("InspectContainer: %s", err)
 		}
 	} else {
