@@ -337,7 +337,7 @@ func prettyDuration(duration time.Duration) string {
 		return fmt.Sprintf("%ds", s)
 	case s < hour:
 		return fmt.Sprintf("%dm", s/min)
-	case s < 3*day:
+	case s < 2*day:
 		return fmt.Sprintf("%dh", s/hour)
 	case s < 2*week:
 		return fmt.Sprintf("%dd", s/day)
