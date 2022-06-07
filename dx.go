@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"net"
 	"os"
 	"os/exec"
 	"sort"
@@ -25,7 +26,8 @@ import (
 
 func main() {
 	psCmd := flag.NewFlagSet("ps", flag.ExitOnError)
-	psallFlag := psCmd.Bool("a", false, "show all containers")
+	psAllFlag := psCmd.Bool("a", false, "show all containers")
+	psVerboseFlag := psCmd.Bool("v", false, "verbose output (shows port listening IPs)")
 	iCmd := flag.NewFlagSet("i", flag.ExitOnError)
 	iallFlag := iCmd.Bool("a", false, "show all images")
 	vCmd := flag.NewFlagSet("v", flag.ExitOnError)
@@ -46,7 +48,7 @@ func main() {
 			fmt.Printf("Unexpected positional arguments.\n")
 			os.Exit(2)
 		}
-		ps(*psallFlag)
+		ps(*psAllFlag, *psVerboseFlag)
 	case "i", "imgs", "images":
 		iCmd.Parse(os.Args[2:])
 		if iCmd.NArg() > 0 {
@@ -87,7 +89,7 @@ func newClient() *docker.Client {
 	return client
 }
 
-func ps(all bool) {
+func ps(all bool, verbose bool) {
 	client := newClient()
 	containers, err := client.ListContainers(
 		docker.ListContainersOptions{
@@ -126,7 +128,7 @@ func ps(all bool) {
 		ips := ips(c.Networks)
 		fmt.Fprintf(w, "\t%s", ips[0])
 
-		fmt.Fprintf(w, "\t%s", ports(c.Ports))
+		fmt.Fprintf(w, "\t%s", ports(c.Ports, verbose))
 
 		if width > 100 {
 			fmt.Fprintf(w, "\t%s", shortenMiddle(c.Command, int(0.15*width)))
@@ -358,20 +360,40 @@ func ips(networklist docker.NetworkList) []string {
 	return s
 }
 
-func ports(ports []docker.APIPort) string {
+func ports(ports []docker.APIPort, verbose bool) string {
 	lines := []string{}
 	for _, p := range ports {
-		line := ""
-		if p.Type == "udp" {
-			line += p.Type + ":"
+		pub := strconv.FormatInt(p.PublicPort, 10)
+		priv := strconv.FormatInt(p.PrivatePort, 10)
+		if p.Type != "tcp" {
+			priv += "/" + p.Type
 		}
+		var line string
 		if p.IP != "" {
-			line += strconv.FormatInt(p.PublicPort, 10) + "→"
+			if verbose {
+				line = net.JoinHostPort(p.IP, pub) + "→" + priv
+			} else {
+				line = pub + "→" + priv
+			}
+		} else {
+			line = priv
 		}
-		line += strconv.FormatInt(p.PrivatePort, 10)
-		lines = append(lines, line)
+		if line != "" {
+			if !contains(lines, line) {
+				lines = append(lines, line)
+			}
+		}
 	}
 	return strings.Join(lines, ",")
+}
+
+func contains(s []string, e string) bool {
+	for i := range s {
+		if s[i] == e {
+			return true
+		}
+	}
+	return false
 }
 
 func shorten(s string, l int) string {
