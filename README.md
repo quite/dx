@@ -13,6 +13,6 @@ Example output:
 
 ```console
 $ dx ps
-id     name   up ip         ports               cmd                                                                image               age
-c19da4 minio1 2h 172.17.0.2 9000→9000,9001→9001 /usr/bin/docker-entrypoint.sh server /data --console-address :9001 quay.io/minio/minio 19h
+id     name   up ip         ports               cmd                                image               age
+c19da4 minio1 2h 172.17.0.2 9000→9000,9001→9001 /usr/bin/docker-e…le-address :9001 quay.io/minio/minio 19h
 ```
