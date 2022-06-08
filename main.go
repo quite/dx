@@ -24,6 +24,10 @@ import (
 // TODO
 // - Allow specifying which obj types examine should look for
 
+const (
+	WIDE = 100
+)
+
 type allOpts struct {
 	psAll     bool
 	psVerbose bool
@@ -34,7 +38,8 @@ func main() {
 	opts := allOpts{}
 	psCmd := flag.NewFlagSet("ps", flag.ExitOnError)
 	psCmd.BoolVar(&opts.psAll, "a", false, "show all containers")
-	psCmd.BoolVar(&opts.psVerbose, "v", false, "verbose output (shows port listening IPs)")
+	psCmd.BoolVar(&opts.psVerbose, "v", false, fmt.Sprintf(`verbose output, adds: age of container, ports listening IP,
+cmd (always displayed if term width >= %d)`, WIDE))
 	iCmd := flag.NewFlagSet("i", flag.ExitOnError)
 	iCmd.BoolVar(&opts.iAll, "a", false, "show all images")
 	vCmd := flag.NewFlagSet("v", flag.ExitOnError)
@@ -116,11 +121,16 @@ func ps(opts allOpts) {
 	width := float64(termwidth())
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 2, 1, ' ', 0)
-	if width > 100 {
-		fmt.Fprintf(w, "id\tname\tage\tup\tip\tports\tcmd\timage\tage")
-	} else {
-		fmt.Fprintf(w, "id\tname\tage\tup\tip\tports\timage\tage")
+	header := "id\tname"
+	if opts.psVerbose {
+		header += "\tage"
 	}
+	header += "\tup\tip\tports"
+	if opts.psVerbose || width >= WIDE {
+		header += "\tcmd"
+	}
+	header += "\timage\tage"
+	fmt.Fprint(w, header)
 	for _, c := range containers {
 		cinfo, err := client.InspectContainerWithOptions(
 			docker.InspectContainerOptions{ID: c.ID})
@@ -130,7 +140,9 @@ func ps(opts allOpts) {
 		fmt.Fprintf(w, "\n")
 		fmt.Fprintf(w, "%s", c.ID[:6])
 		fmt.Fprintf(w, "\t%s", shorten(strings.TrimPrefix(cinfo.Name, "/"), int(0.2*width)))
-		fmt.Fprintf(w, "\t%s", prettyDuration(time.Since(time.Unix(c.Created, 0))))
+		if opts.psVerbose {
+			fmt.Fprintf(w, "\t%s", prettyDuration(time.Since(time.Unix(c.Created, 0))))
+		}
 		fmt.Fprintf(w, "\t%s", state(cinfo.State))
 
 		// TODO, only one IP?
@@ -139,7 +151,7 @@ func ps(opts allOpts) {
 
 		fmt.Fprintf(w, "\t%s", ports(c.Ports, opts.psVerbose))
 
-		if width > 100 {
+		if opts.psVerbose || width >= WIDE {
 			fmt.Fprintf(w, "\t%s", shortenMiddle(c.Command, int(0.15*width)))
 		}
 
