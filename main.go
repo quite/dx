@@ -24,12 +24,19 @@ import (
 // TODO
 // - Allow specifying which obj types examine should look for
 
+type allOpts struct {
+	psAll     bool
+	psVerbose bool
+	iAll      bool
+}
+
 func main() {
+	opts := allOpts{}
 	psCmd := flag.NewFlagSet("ps", flag.ExitOnError)
-	psAllFlag := psCmd.Bool("a", false, "show all containers")
-	psVerboseFlag := psCmd.Bool("v", false, "verbose output (shows port listening IPs)")
+	psCmd.BoolVar(&opts.psAll, "a", false, "show all containers")
+	psCmd.BoolVar(&opts.psVerbose, "v", false, "verbose output (shows port listening IPs)")
 	iCmd := flag.NewFlagSet("i", flag.ExitOnError)
-	iallFlag := iCmd.Bool("a", false, "show all images")
+	iCmd.BoolVar(&opts.iAll, "a", false, "show all images")
 	vCmd := flag.NewFlagSet("v", flag.ExitOnError)
 	xCmd := flag.NewFlagSet("x", flag.ExitOnError)
 
@@ -43,19 +50,22 @@ func main() {
 	}
 	switch os.Args[1] {
 	case "ps", "c", "containers":
-		psCmd.Parse(os.Args[2:])
+		err := psCmd.Parse(os.Args[2:])
+		if err != nil {
+			panic(err)
+		}
 		if psCmd.NArg() > 0 {
 			fmt.Printf("Unexpected positional arguments.\n")
 			os.Exit(2)
 		}
-		ps(*psAllFlag, *psVerboseFlag)
+		ps(opts)
 	case "i", "imgs", "images":
 		iCmd.Parse(os.Args[2:])
 		if iCmd.NArg() > 0 {
 			fmt.Printf("Unexpected positional arguments.\n")
 			os.Exit(2)
 		}
-		imgs(*iallFlag)
+		imgs(opts)
 	case "v", "vols", "volumes":
 		vCmd.Parse(os.Args[2:])
 		if vCmd.NArg() > 0 {
@@ -89,11 +99,11 @@ func newClient() *docker.Client {
 	return client
 }
 
-func ps(all bool, verbose bool) {
+func ps(opts allOpts) {
 	client := newClient()
 	containers, err := client.ListContainers(
 		docker.ListContainersOptions{
-			All: all, Size: false,
+			All: opts.psAll, Size: false,
 		})
 	if err != nil {
 		log.Fatalf("ListContainers: %s", err)
@@ -128,7 +138,7 @@ func ps(all bool, verbose bool) {
 		ips := ips(c.Networks)
 		fmt.Fprintf(w, "\t%s", ips[0])
 
-		fmt.Fprintf(w, "\t%s", ports(c.Ports, verbose))
+		fmt.Fprintf(w, "\t%s", ports(c.Ports, opts.psVerbose))
 
 		if width > 100 {
 			fmt.Fprintf(w, "\t%s", shortenMiddle(c.Command, int(0.15*width)))
@@ -147,11 +157,11 @@ func ps(all bool, verbose bool) {
 	w.Flush()
 }
 
-func imgs(all bool) {
+func imgs(opts allOpts) {
 	client := newClient()
 	imgs, err := client.ListImages(
 		docker.ListImagesOptions{
-			All: all,
+			All: opts.iAll,
 		})
 	if err != nil {
 		log.Fatalf("ListImages: %s", err)
