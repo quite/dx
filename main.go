@@ -115,12 +115,11 @@ func ps(opts allOpts) {
 
 	width := float64(termwidth())
 
-	w := new(tabwriter.Writer)
-	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
+	w := tabwriter.NewWriter(os.Stdout, 0, 2, 1, ' ', 0)
 	if width > 100 {
-		fmt.Fprintf(w, "id\tname\tage\tup\tip\tports\tcmd\timage (age)")
+		fmt.Fprintf(w, "id\tname\tage\tup\tip\tports\tcmd\timage\tage")
 	} else {
-		fmt.Fprintf(w, "id\tname\tage\tup\tip\tports\timage (age)")
+		fmt.Fprintf(w, "id\tname\tage\tup\tip\tports\timage\tage")
 	}
 	for _, c := range containers {
 		cinfo, err := client.InspectContainerWithOptions(
@@ -151,7 +150,7 @@ func ps(opts allOpts) {
 		} else {
 			imgAge = prettyDuration(time.Since(img.Created))
 		}
-		fmt.Fprintf(w, "\t%s (%s)", shorten(c.Image, int(0.2*width)), imgAge)
+		fmt.Fprintf(w, "\t%s\t%s", shorten(c.Image, int(0.2*width)), imgAge)
 	}
 	fmt.Fprintf(w, "\n")
 	w.Flush()
