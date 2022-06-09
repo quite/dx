@@ -6,7 +6,7 @@ convenience.
 Installation:
 
 ```console
-$ go install github.com/quite/dx
+$ go install github.com/quite/dx@latest
 ```
 
 Example output:
