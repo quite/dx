@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -18,6 +17,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/spf13/pflag"
 	"golang.org/x/term"
 )
 
@@ -30,20 +30,20 @@ const (
 
 type allOpts struct {
 	psAll     bool
-	psVerbose bool
+	psVerbose int
 	iAll      bool
 }
 
 func main() {
 	opts := allOpts{}
-	psCmd := flag.NewFlagSet("ps", flag.ExitOnError)
-	psCmd.BoolVar(&opts.psAll, "a", false, "show all containers")
-	psCmd.BoolVar(&opts.psVerbose, "v", false, fmt.Sprintf(`verbose output, adds: age of container, ports listening IP,
+	psCmd := pflag.NewFlagSet("ps", pflag.ExitOnError)
+	psCmd.BoolVarP(&opts.psAll, "all", "a", false, "show all containers")
+	psCmd.CountVarP(&opts.psVerbose, "verbose", "v", fmt.Sprintf(`verbose output, adds: age of container, ports listening IP,
 cmd (always displayed if term width >= %d)`, WIDE))
-	iCmd := flag.NewFlagSet("i", flag.ExitOnError)
-	iCmd.BoolVar(&opts.iAll, "a", false, "show all images")
-	vCmd := flag.NewFlagSet("v", flag.ExitOnError)
-	xCmd := flag.NewFlagSet("x", flag.ExitOnError)
+	iCmd := pflag.NewFlagSet("i", pflag.ExitOnError)
+	iCmd.BoolVarP(&opts.iAll, "all", "a", false, "show all images")
+	vCmd := pflag.NewFlagSet("v", pflag.ExitOnError)
+	xCmd := pflag.NewFlagSet("x", pflag.ExitOnError)
 
 	if len(os.Args) == 1 {
 		fmt.Println("subcommands:")
@@ -122,11 +122,11 @@ func ps(opts allOpts) {
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 2, 1, ' ', 0)
 	header := "id\tname"
-	if opts.psVerbose {
+	if opts.psVerbose >= 1 {
 		header += "\tage"
 	}
 	header += "\tup\tip\tports"
-	if opts.psVerbose || width >= WIDE {
+	if opts.psVerbose >= 1 || width >= WIDE {
 		header += "\tcmd"
 	}
 	header += "\timage\tage"
@@ -140,7 +140,7 @@ func ps(opts allOpts) {
 		fmt.Fprintf(w, "\n")
 		fmt.Fprintf(w, "%s", c.ID[:6])
 		fmt.Fprintf(w, "\t%s", shorten(strings.TrimPrefix(cinfo.Name, "/"), int(0.2*width)))
-		if opts.psVerbose {
+		if opts.psVerbose >= 1 {
 			fmt.Fprintf(w, "\t%s", prettyDuration(time.Since(time.Unix(c.Created, 0))))
 		}
 		fmt.Fprintf(w, "\t%s", state(cinfo.State))
@@ -151,7 +151,7 @@ func ps(opts allOpts) {
 
 		fmt.Fprintf(w, "\t%s", ports(c.Ports, opts.psVerbose))
 
-		if opts.psVerbose || width >= WIDE {
+		if opts.psVerbose >= 1 || width >= WIDE {
 			fmt.Fprintf(w, "\t%s", shortenMiddle(c.Command, int(0.15*width)))
 		}
 
@@ -381,7 +381,7 @@ func ips(networklist docker.NetworkList) []string {
 	return s
 }
 
-func ports(ports []docker.APIPort, verbose bool) string {
+func ports(ports []docker.APIPort, verbose int) string {
 	lines := []string{}
 	for _, p := range ports {
 		pub := strconv.FormatInt(p.PublicPort, 10)
@@ -391,7 +391,7 @@ func ports(ports []docker.APIPort, verbose bool) string {
 		}
 		var line string
 		if p.IP != "" {
-			if verbose {
+			if verbose >= 1 {
 				line = net.JoinHostPort(p.IP, pub) + "→" + priv
 			} else {
 				line = pub + "→" + priv
