@@ -37,11 +37,14 @@ type allOpts struct {
 func main() {
 	opts := allOpts{}
 	psCmd := pflag.NewFlagSet("ps", pflag.ExitOnError)
-	psCmd.BoolVarP(&opts.psAll, "all", "a", false, "show all containers")
-	psCmd.CountVarP(&opts.psVerbose, "verbose", "v", fmt.Sprintf(`verbose output, adds: age of container, ports listening IP,
-cmd (always displayed if term width >= %d)`, WIDE))
+	psCmd.BoolVarP(&opts.psAll, "all", "a", false, "show all containers (not only running)")
+	psCmd.CountVarP(&opts.psVerbose, "verbose", "v",
+		fmt.Sprintf(`be more verbose, -v can be passed multiple times.
+1 time: add age of container, ports listening IP,
+cmd (always displayed if term width >= %d).
+2 times: also don't shorten anything.`, WIDE))
 	iCmd := pflag.NewFlagSet("i", pflag.ExitOnError)
-	iCmd.BoolVarP(&opts.iAll, "all", "a", false, "show all images")
+	iCmd.BoolVarP(&opts.iAll, "all", "a", false, "show all images (including intermediate)")
 	vCmd := pflag.NewFlagSet("v", pflag.ExitOnError)
 	xCmd := pflag.NewFlagSet("x", pflag.ExitOnError)
 
@@ -139,7 +142,11 @@ func ps(opts allOpts) {
 		}
 		fmt.Fprintf(w, "\n")
 		fmt.Fprintf(w, "%s", c.ID[:6])
-		fmt.Fprintf(w, "\t%s", shorten(strings.TrimPrefix(cinfo.Name, "/"), int(0.2*width)))
+		cname := strings.TrimPrefix(cinfo.Name, "/")
+		if opts.psVerbose < 2 {
+			cname = shorten(cname, int(0.2*width))
+		}
+		fmt.Fprintf(w, "\t%s", cname)
 		if opts.psVerbose >= 1 {
 			fmt.Fprintf(w, "\t%s", prettyDuration(time.Since(time.Unix(c.Created, 0))))
 		}
@@ -152,8 +159,18 @@ func ps(opts allOpts) {
 		fmt.Fprintf(w, "\t%s", ports(c.Ports, opts.psVerbose))
 
 		if opts.psVerbose >= 1 || width >= WIDE {
-			fmt.Fprintf(w, "\t%s", shortenMiddle(c.Command, int(0.15*width)))
+			cmd := c.Command
+			if opts.psVerbose < 2 {
+				cmd = shortenMiddle(cmd, int(0.15*width))
+			}
+			fmt.Fprintf(w, "\t%s", cmd)
 		}
+
+		imgName := c.Image
+		if opts.psVerbose < 2 {
+			imgName = shorten(imgName, int(0.2*width))
+		}
+		fmt.Fprintf(w, "\t%s", imgName)
 
 		imgAge := "?"
 		img, err := client.InspectImage(cinfo.Image) // by hash
@@ -162,7 +179,7 @@ func ps(opts allOpts) {
 		} else {
 			imgAge = prettyDuration(time.Since(img.Created))
 		}
-		fmt.Fprintf(w, "\t%s\t%s", shorten(c.Image, int(0.2*width)), imgAge)
+		fmt.Fprintf(w, "\t%s", imgAge)
 	}
 	fmt.Fprintf(w, "\n")
 	w.Flush()
