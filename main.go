@@ -303,7 +303,10 @@ func outputFound(obj interface{}, objType string, id string) {
 		cmd, out = runPager()
 		defer func() {
 			out.Close()
-			cmd.Wait()
+			err := cmd.Wait()
+			if err != nil {
+				log.Fatalf("Wait: %s", err)
+			}
 		}()
 	}
 	fmt.Fprintf(out, "%s\n", b)
