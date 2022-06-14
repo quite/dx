@@ -58,8 +58,7 @@ cmd (always displayed if term width >= %d).
 	}
 	switch os.Args[1] {
 	case "ps", "c", "containers":
-		err := psCmd.Parse(os.Args[2:])
-		if err != nil {
+		if err := psCmd.Parse(os.Args[2:]); err != nil {
 			panic(err)
 		}
 		if psCmd.NArg() > 0 {
@@ -68,21 +67,27 @@ cmd (always displayed if term width >= %d).
 		}
 		ps(opts)
 	case "i", "imgs", "images":
-		iCmd.Parse(os.Args[2:])
+		if err := iCmd.Parse(os.Args[2:]); err != nil {
+			panic(err)
+		}
 		if iCmd.NArg() > 0 {
 			fmt.Printf("Unexpected positional arguments.\n")
 			os.Exit(2)
 		}
 		imgs(opts)
 	case "v", "vols", "volumes":
-		vCmd.Parse(os.Args[2:])
+		if err := vCmd.Parse(os.Args[2:]); err != nil {
+			panic(err)
+		}
 		if vCmd.NArg() > 0 {
 			fmt.Printf("Unexpected positional arguments.\n")
 			os.Exit(2)
 		}
 		vols()
 	case "x", "examine", "inspect":
-		xCmd.Parse(os.Args[2:])
+		if err := xCmd.Parse(os.Args[2:]); err != nil {
+			panic(err)
+		}
 		if xCmd.NArg() != 1 {
 			fmt.Printf("Expected 1 ID/name (prefix) to examine.\n")
 			os.Exit(2)
