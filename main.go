@@ -203,10 +203,9 @@ func imgs(opts allOpts) {
 	w.Init(os.Stdout, 0, 2, 1, ' ', 0)
 	fmt.Fprintf(w, "id\tage\tsize\trepotags")
 	for _, i := range imgs {
-		id := i.ID
-		if strings.ContainsAny(i.ID, ":") {
-			id = strings.SplitN(i.ID, ":", 2)[1]
-		}
+		// strip any "hashName:" prefix
+		idParts := strings.SplitN(i.ID, ":", 2)
+		id := idParts[len(idParts)-1]
 		fmt.Fprintf(w, "\n")
 		fmt.Fprintf(w, "%s", id[:6])
 		fmt.Fprintf(w, "\t%s", prettyDuration(time.Since(time.Unix(i.Created, 0))))
