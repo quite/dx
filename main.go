@@ -210,7 +210,7 @@ func imgs(opts allOpts) {
 		fmt.Fprintf(w, "\n")
 		fmt.Fprintf(w, "%s", id[:6])
 		fmt.Fprintf(w, "\t%s", prettyDuration(time.Since(time.Unix(i.Created, 0))))
-		fmt.Fprintf(w, "\t%s", shortenBytes(i.Size))
+		fmt.Fprintf(w, "\t%s", prettySize(i.Size))
 		fmt.Fprintf(w, "\t%s", strings.Join(i.RepoTags, ","))
 	}
 	fmt.Fprintf(w, "\n")
@@ -450,7 +450,7 @@ func shortenMiddle(s string, l int) string {
 	return strings.ReplaceAll(s, "\n", "␤")
 }
 
-func shortenBytes(bytes int64) string {
+func prettySize(bytes int64) string {
 	byts := float64(bytes)
 	unit := float64(1024)
 	if byts < unit {
